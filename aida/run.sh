@@ -43,6 +43,23 @@ init_environment() {
         cp "${AIDA_SCRIPTS}/tmux.conf" "$data_home/.tmux.conf"
     fi
 
+    # Pre-complete Claude Code first-run onboarding + trust dialog. Without this,
+    # non-interactive `claude` calls (ha-mcp) block on the onboarding prompt, and
+    # the terminal opens on the theme picker instead of the login screen.
+    # Merge into any existing config so credentials/MCP registrations are kept.
+    local claude_json="$data_home/.claude.json"
+    local merged
+    merged=$(jq -n --slurpfile existing <(cat "$claude_json" 2>/dev/null || echo '{}') '
+        ($existing[0] // {}) as $e |
+        $e
+        + {hasCompletedOnboarding: true, theme: ($e.theme // "dark")}
+        | .projects = (($e.projects // {}) * {"/config": (($e.projects["/config"] // {}) + {hasTrustDialogAccepted: true, projectOnboardingSeenCount: 1})})
+    ' 2>/dev/null)
+    if [ -n "$merged" ]; then
+        printf '%s\n' "$merged" > "$claude_json"
+        bashio::log.info "Ensured Claude Code onboarding state."
+    fi
+
     bashio::log.info "  HOME=$HOME"
     bashio::log.info "  Claude config=$ANTHROPIC_CONFIG_DIR"
 }
@@ -238,9 +255,8 @@ get_launch_command() {
     local prefix=""
     [ -f /usr/local/bin/welcome ] && prefix="welcome; "
 
-    # Ensure the user is signed in before launching Claude.
-    prefix="${prefix}sign-in --ensure; "
-
+    # Let Claude drive its own login on first launch (it shows the login link
+    # natively). Run `sign-in` manually only to switch methods or paste a key.
     if [ "$(bashio::config 'auto_launch' 'true')" = "true" ]; then
         echo "${prefix}tmux new-session -A -s aida 'claude --permission-mode ${AIDA_PERMISSION_MODE:-default}'"
     else
@@ -283,7 +299,11 @@ main() {
     # Optional steps — must never block or abort the web terminal.
     install_persistent_packages || bashio::log.warning "persistent packages step skipped"
     generate_ha_context         || bashio::log.warning "context generation skipped"
-    setup_ha_mcp                || bashio::log.warning "ha-mcp setup skipped"
+
+    # ha-mcp registration can be slow on first run; do it in the background so
+    # it never delays the terminal. It attaches within a few seconds.
+    ( setup_ha_mcp || bashio::log.warning "ha-mcp setup skipped" ) &
+
     start_bridge                || bashio::log.warning "bridge start skipped"
 
     # Always start the terminal last.

@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.0.2
+
+### 🚀 Improvements
+- **Terminal now opens in seconds instead of ~50s.** ha-mcp registration was
+  waiting on Claude Code's first-run onboarding; it now runs in the background
+  and no longer delays the web terminal.
+- **Fixed sign-in showing no login link.** Claude Code's first-run onboarding /
+  theme picker was blocking before the login prompt appeared. Onboarding + the
+  `/config` trust dialog are now pre-completed, so the terminal drops straight
+  to Claude's native login screen. The extra `sign-in --ensure` wrapper on
+  launch was removed — Claude drives its own login.
+
 ## 1.0.1
 
 ### 🐛 Bug Fixes
