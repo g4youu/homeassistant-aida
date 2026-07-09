@@ -3,9 +3,11 @@
 # Aida — agentic AI assistant for Home Assistant
 # Orchestrates sign-in, safety policy, context, MCP, conversation bridge,
 # and the web terminal.
-
-set -e
-set -o pipefail
+#
+# NOTE: intentionally NO `set -e`. This is an orchestrator that calls several
+# optional/external steps (ha-mcp, bridge, context). None of them may prevent
+# the web terminal from starting, so failures are handled locally instead of
+# aborting the whole script.
 
 AIDA_HOME="/opt/aida"
 AIDA_SCRIPTS="${AIDA_HOME}/scripts"
@@ -273,14 +275,18 @@ start_web_terminal() {
 # ---------------------------------------------------------------------------
 main() {
     bashio::log.info "=== Aida starting ==="
-    init_environment
-    setup_safety_policy
-    setup_authentication
-    install_helpers
-    install_persistent_packages
-    generate_ha_context
-    setup_ha_mcp
-    start_bridge
+    init_environment       || bashio::log.warning "init_environment reported an issue"
+    setup_safety_policy    || bashio::log.warning "setup_safety_policy reported an issue"
+    setup_authentication   || bashio::log.warning "setup_authentication reported an issue"
+    install_helpers        || bashio::log.warning "install_helpers reported an issue"
+
+    # Optional steps — must never block or abort the web terminal.
+    install_persistent_packages || bashio::log.warning "persistent packages step skipped"
+    generate_ha_context         || bashio::log.warning "context generation skipped"
+    setup_ha_mcp                || bashio::log.warning "ha-mcp setup skipped"
+    start_bridge                || bashio::log.warning "bridge start skipped"
+
+    # Always start the terminal last.
     start_web_terminal
 }
 

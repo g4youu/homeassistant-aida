@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.0.1
+
+### 🐛 Bug Fixes
+- **Fixed the web terminal never starting (502 Bad Gateway / ingress "Cannot
+  connect to :7681").** Startup hung at "Configuring Home Assistant MCP
+  server..." because the first `claude` invocation blocked on a first-run
+  onboarding prompt. All boot-time `claude` calls now run with stdin closed and
+  a `timeout`, and every optional step (ha-mcp, bridge, context) is now
+  non-fatal — the web terminal always starts even if they fail.
+- Removed `set -e` from the orchestrator so a single optional-step failure can
+  no longer abort startup.
+
+### 🛠️ Housekeeping
+- Dropped the deprecated `armv7` architecture (kept `aarch64`, `amd64`).
+- Corrected the repository URL in `config.yaml` and image labels.
+
+> Note: if ha-mcp doesn't register on the first boot after updating, restart the
+> add-on once after completing Claude sign-in in the terminal.
+
 ## 1.0.0
 
 Initial release of **Aida** — an agentic AI assistant for Home Assistant,

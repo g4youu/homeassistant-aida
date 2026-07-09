@@ -1,7 +1,7 @@
 ---
 name: "Aida"
 description: "Agentic AI assistant for Home Assistant — safe by default, easy multi-method sign-in, powered by Claude Code"
-version: "1.0.0"
+version: "1.0.1"
 slug: "aida"
 init: false
 
@@ -9,10 +9,9 @@ init: false
 arch:
   - aarch64
   - amd64
-  - armv7
 
 # External resources
-url: "https://github.com/g4youu/home-assistant-addons-claude"
+url: "https://github.com/g4youu/homeassistant-aida"
 
 # Web interface configuration (terminal via ingress)
 ingress: true
