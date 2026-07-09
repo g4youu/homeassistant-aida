@@ -1,12 +1,11 @@
 #!/usr/bin/with-contenv bashio
-# Configure Claude Code to use ha-mcp (Home Assistant MCP Server) so Aida can
-# control entities, automations, scripts and more via natural language.
+# Register ha-mcp (Home Assistant MCP Server) so Aida can control entities,
+# automations, scripts and more via natural language.
 # Repository: https://github.com/homeassistant-ai/ha-mcp
 #
-# NOTE: no `set -e`, and every `claude` call runs with stdin from /dev/null and
-# wrapped in `timeout`. The first `claude` invocation can trigger first-run
-# onboarding that blocks on stdin; without these guards it hangs startup and the
-# web terminal never comes up.
+# We write the MCP server config DIRECTLY into Claude Code's ~/.claude.json
+# instead of calling `claude mcp add`. The CLI can block on first-run prompts;
+# a direct JSON write is instant, deterministic, and never hangs startup.
 
 configure_ha_mcp_server() {
     local enable_ha_mcp
@@ -24,20 +23,30 @@ configure_ha_mcp_server() {
         return 0
     fi
 
-    bashio::log.info "Configuring Home Assistant MCP server..."
+    local claude_json="${HOME}/.claude.json"
+    local tmp
+    tmp=$(mktemp)
 
-    # Remove any stale registration (never blocks).
-    timeout 20 claude mcp remove home-assistant </dev/null >/dev/null 2>&1 || true
-
-    # Register ha-mcp. `claude mcp add` only writes config; it does not run uvx.
-    if timeout 30 claude mcp add home-assistant \
-        --env "HOMEASSISTANT_URL=http://supervisor/core" \
-        --env "HOMEASSISTANT_TOKEN=${SUPERVISOR_TOKEN}" \
-        -- uvx --index-strategy unsafe-best-match ha-mcp@3.5.1 </dev/null; then
-        bashio::log.info "ha-mcp configured — Aida can act on Home Assistant."
+    # Merge a user-scoped "home-assistant" MCP server into the existing config.
+    if jq -n --arg token "${SUPERVISOR_TOKEN}" \
+        --slurpfile existing <(cat "$claude_json" 2>/dev/null || echo '{}') '
+        ($existing[0] // {}) as $c |
+        $c | .mcpServers = (($c.mcpServers // {}) + {
+          "home-assistant": {
+            "type": "stdio",
+            "command": "uvx",
+            "args": ["--index-strategy", "unsafe-best-match", "ha-mcp@3.5.1"],
+            "env": {
+              "HOMEASSISTANT_URL": "http://supervisor/core",
+              "HOMEASSISTANT_TOKEN": $token
+            }
+          }
+        })
+    ' > "$tmp" 2>/dev/null && mv "$tmp" "$claude_json"; then
+        bashio::log.info "ha-mcp registered — Aida can act on Home Assistant after sign-in."
     else
-        bashio::log.warning "ha-mcp registration timed out or failed; continuing without it."
-        bashio::log.warning "Set it up later from the terminal with: claude mcp add ..."
+        rm -f "$tmp"
+        bashio::log.warning "Could not register ha-mcp; continuing without it."
     fi
     return 0
 }

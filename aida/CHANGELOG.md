@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.0.3
+
+### 🐛 Bug Fixes
+- **ha-mcp now registers reliably.** It was still timing out because
+  `claude mcp add` blocks on Claude Code's first-run prompts. The Home Assistant
+  MCP server is now written directly into `~/.claude.json` — instant,
+  deterministic, and it can't hang startup.
+- **Claude's login screen now appears.** The onboarding seed no longer marks
+  onboarding "complete" (which could skip the login prompt); it only accepts the
+  `/config` trust dialog, so Claude runs its native first-run and shows its own
+  login. Existing installs: type `/login` in the terminal once to sign in.
+
 ## 1.0.2
 
 ### 🚀 Improvements
