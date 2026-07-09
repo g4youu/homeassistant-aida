@@ -1,0 +1,69 @@
+{
+  "$comment": "Managed by the Aida add-on. Defines the default safety policy for Claude Code: what is auto-allowed, what requires confirmation, and what is always blocked. Runtime guard/backup/audit hooks add a second enforcement layer that the model cannot bypass.",
+  "permissions": {
+    "allow": [
+      "Read",
+      "Glob",
+      "Grep",
+      "Bash(ha-context:*)",
+      "Bash(aida-context:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(cat:*)",
+      "Bash(ls:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(grep:*)",
+      "Bash(jq:*)",
+      "Bash(yq:*)"
+    ],
+    "ask": [
+      "Edit",
+      "Write",
+      "MultiEdit",
+      "NotebookEdit",
+      "Bash",
+      "mcp__home-assistant__*",
+      "WebFetch",
+      "WebSearch"
+    ],
+    "deny": [
+      "Bash(rm -rf /*)",
+      "Bash(rm -rf /)",
+      "Bash(:(){:|:&};:)",
+      "Bash(mkfs:*)",
+      "Bash(dd if=:*)",
+      "Bash(chmod -R 777 /*)",
+      "Read(/data/.config/claude/**)",
+      "Read(/config/aida/bridge-token)",
+      "Read(/config/aida/anthropic_api_key)",
+      "Read(**/.credentials.json)",
+      "Read(**/secrets.yaml)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "command": "/opt/aida/scripts/guard-hook.sh" }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit|NotebookEdit",
+        "hooks": [
+          { "type": "command", "command": "/opt/aida/scripts/backup-hook.sh" }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "command": "/opt/aida/scripts/audit-hook.sh" }
+        ]
+      }
+    ]
+  }
+}

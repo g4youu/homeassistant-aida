@@ -1,0 +1,12 @@
+{
+  "domain": "aida",
+  "name": "Aida",
+  "codeowners": [],
+  "config_flow": true,
+  "dependencies": ["conversation"],
+  "documentation": "https://github.com/g4youu/home-assistant-addons-claude",
+  "integration_type": "service",
+  "iot_class": "local_polling",
+  "requirements": [],
+  "version": "1.0.0"
+}

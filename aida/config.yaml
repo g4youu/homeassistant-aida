@@ -1,0 +1,100 @@
+---
+name: "Aida"
+description: "Agentic AI assistant for Home Assistant — safe by default, easy multi-method sign-in, powered by Claude Code"
+version: "1.0.0"
+slug: "aida"
+init: false
+
+# Supported architectures
+arch:
+  - aarch64
+  - amd64
+  - armv7
+
+# External resources
+url: "https://github.com/g4youu/home-assistant-addons-claude"
+
+# Web interface configuration (terminal via ingress)
+ingress: true
+ingress_port: 7681
+panel_icon: mdi:robot-happy
+panel_title: "Aida"
+panel_admin: true
+
+# Port configuration
+ports:
+  7681/tcp: null      # Web terminal (not required for ingress)
+  7682/tcp: null      # Conversation bridge (HTTP API for HA integration)
+ports_description:
+  7681/tcp: "Web terminal (optional — ingress works without it)"
+  7682/tcp: "Conversation bridge API (needed if you wire Aida into HA Assist)"
+
+# Add-on configuration options
+options:
+  # --- Sign-in ---
+  auth_method: "oauth"
+  anthropic_api_key: ""
+  # --- Safety ---
+  mode: "assisted"
+  entity_denylist:
+    - "lock"
+    - "alarm_control_panel"
+    - "cover.garage"
+  entity_allowlist: []
+  auto_backup: true
+  audit_log: true
+  # --- Features ---
+  auto_launch: true
+  ha_smart_context: true
+  enable_ha_mcp: true
+  enable_bridge: true
+  bridge_require_token: true
+  # --- Packages ---
+  persistent_apk_packages: []
+  persistent_pip_packages: []
+schema:
+  # Sign-in
+  auth_method: "list(oauth|api_key|bedrock|vertex)"
+  anthropic_api_key: "password?"
+  aws_region: "str?"
+  aws_access_key_id: "str?"
+  aws_secret_access_key: "password?"
+  bedrock_model: "str?"
+  gcp_project: "str?"
+  gcp_region: "str?"
+  vertex_model: "str?"
+  # Safety
+  mode: "list(read-only|assisted|autonomous)"
+  entity_denylist:
+    - "str"
+  entity_allowlist:
+    - "str"
+  auto_backup: "bool?"
+  audit_log: "bool?"
+  # Features
+  auto_launch: "bool?"
+  ha_smart_context: "bool?"
+  enable_ha_mcp: "bool?"
+  enable_bridge: "bool?"
+  bridge_require_token: "bool?"
+  # Packages
+  persistent_apk_packages:
+    - "str"
+  persistent_pip_packages:
+    - "str"
+
+# Volume mappings for file access
+map:
+  - config:rw    # Access to Home Assistant configuration files
+
+# API access for Home Assistant integration
+hassio_api: true
+hassio_role: manager
+homeassistant_api: true
+auth_api: true
+
+# Service startup configuration
+startup: services
+
+# Web UI access URL
+webui: http://[HOST]:[PORT:7681]/

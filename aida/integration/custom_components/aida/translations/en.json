@@ -1,0 +1,15 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to Aida",
+        "description": "Enter the Aida add-on host and bridge token (from /config/aida/bridge-token).",
+        "data": {
+          "host": "Add-on host",
+          "port": "Bridge port",
+          "token": "Bridge token"
+        }
+      }
+    }
+  }
+}

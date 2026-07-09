@@ -1,0 +1,72 @@
+configuration:
+  auth_method:
+    name: Sign-in method
+    description: >-
+      How Aida authenticates: oauth (Claude Pro/Max or Console login),
+      api_key (Anthropic API key), bedrock (Amazon Bedrock), or vertex
+      (Google Vertex AI).
+  anthropic_api_key:
+    name: Anthropic API key
+    description: Your API key. Used when sign-in method is api_key.
+  aws_region:
+    name: AWS region
+    description: Region for Amazon Bedrock (when sign-in method is bedrock).
+  aws_access_key_id:
+    name: AWS access key ID
+    description: Access key for Amazon Bedrock.
+  aws_secret_access_key:
+    name: AWS secret access key
+    description: Secret key for Amazon Bedrock.
+  bedrock_model:
+    name: Bedrock model
+    description: Optional model id override for Amazon Bedrock.
+  gcp_project:
+    name: GCP project
+    description: Google Cloud project id for Vertex AI.
+  gcp_region:
+    name: GCP region
+    description: Region for Vertex AI (e.g. us-east5).
+  vertex_model:
+    name: Vertex model
+    description: Optional model id override for Vertex AI.
+  mode:
+    name: Safety mode
+    description: >-
+      read-only (no changes), assisted (asks before acting, recommended),
+      or autonomous (acts without asking; the guard still blocks dangerous
+      actions and protected entities).
+  entity_denylist:
+    name: Protected entities
+    description: >-
+      Domains or entity ids Aida may never control (e.g. lock,
+      alarm_control_panel, cover.garage).
+  entity_allowlist:
+    name: Entity allowlist
+    description: Reserved for scoping Aida to only these entities.
+  auto_backup:
+    name: Back up before edits
+    description: Copy files under /config to /config/aida/backups before editing.
+  audit_log:
+    name: Audit log
+    description: Record every action Aida takes to /config/aida/audit.log.
+  auto_launch:
+    name: Auto-launch
+    description: Start Aida immediately instead of showing the session picker.
+  ha_smart_context:
+    name: Home Assistant smart context
+    description: Generate a context file so Aida knows your setup.
+  enable_ha_mcp:
+    name: Enable entity control (MCP)
+    description: Register the Home Assistant MCP server so Aida can act on your home.
+  enable_bridge:
+    name: Enable conversation bridge
+    description: Serve an HTTP API (port 7682) so you can talk to Aida from Assist.
+  bridge_require_token:
+    name: Require bridge token
+    description: Require a Bearer token for conversation bridge requests.
+  persistent_apk_packages:
+    name: Persistent APK packages
+    description: Alpine packages reinstalled on every start.
+  persistent_pip_packages:
+    name: Persistent pip packages
+    description: Python packages reinstalled on every start.
