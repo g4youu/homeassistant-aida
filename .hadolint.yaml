@@ -1,0 +1,7 @@
+# Home Assistant add-ons intentionally track rolling package versions from the
+# Alpine base and npm, so the "pin every version" rules are noise here.
+ignored:
+  - DL3018  # apk: pin versions
+  - DL3016  # npm: pin versions
+  - DL3013  # pip: pin versions
+  - DL3008  # apt: pin versions
