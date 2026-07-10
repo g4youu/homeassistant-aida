@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.0.6
+
+### 🐛 Bug Fixes
+- **Claude Code hung on startup on Alpine/musl.** Diagnostics showed `claude`
+  never returning — even `claude --version` — which froze the whole terminal.
+  Claude Code is a glibc program; the image now ships `gcompat`, `libstdc++` and
+  `libgcc` so the CLI and its bundled native helpers actually run on the
+  Alpine/musl add-on base.
+
+### 🩺 Diagnostics
+- The startup health probe no longer wedges itself. It previously captured
+  `claude --version` with `$(...)`, which blocks forever when Claude leaves a
+  background child holding the output pipe — so the report cut off mid-file.
+  Probes now write straight to `/config/aida/diagnostics.txt` and hard-kill on
+  timeout, so you always get the full arch/libc/version/connectivity/`claude -p`
+  report.
+
 ## 1.0.5
 
 ### 🐛 Bug Fixes

@@ -322,6 +322,8 @@ start_web_terminal() {
 # we can see why Claude misbehaves even when the interactive terminal is stuck.
 run_diagnostics() {
     local out="${AIDA_STATE}/diagnostics.txt"
+    local tmp="/tmp/aida-diag-claude.out"
+
     {
         echo "=== Aida diagnostics $(date -u '+%Y-%m-%d %H:%M:%S UTC') ==="
         echo "addon-version : $(cat "${AIDA_HOME}/addon-version" 2>/dev/null || echo '?')"
@@ -329,19 +331,35 @@ run_diagnostics() {
         echo "libc          : $(ls /lib/ld-musl-* >/dev/null 2>&1 && echo musl || echo glibc)"
         echo "node          : $(node --version 2>&1)"
         echo "which claude  : $(command -v claude 2>&1)"
-        local v rc
-        v=$(timeout 15 claude --version 2>&1); rc=$?
-        echo "claude --version : rc=${rc} :: ${v}"
-        local http
-        http=$(curl -sS -m 12 -o /dev/null -w '%{http_code}' https://api.anthropic.com/ 2>&1); rc=$?
-        echo "api.anthropic.com     : http=${http} curl_rc=${rc}"
-        http=$(curl -sS -m 12 -o /dev/null -w '%{http_code}' https://console.anthropic.com/ 2>&1); rc=$?
-        echo "console.anthropic.com : http=${http} curl_rc=${rc}"
-        local pout prc
-        pout=$(printf '' | timeout 30 claude -p 'reply with the word OK' 2>&1 | head -c 400); prc=$?
-        echo "claude -p test : rc=${prc} :: ${pout}"
-        echo "=== end diagnostics ==="
     } > "$out" 2>&1
+
+    # IMPORTANT: probe Claude with DIRECT file redirection, never $(...). Claude
+    # can leave a lingering background child holding the output pipe, which makes
+    # command substitution block forever (this is what truncated earlier reports).
+    # SIGKILL after the timeout so nothing can survive to wedge the next step.
+    {
+        echo -n "claude --version : "
+        timeout -s KILL 20 claude --version </dev/null 2>&1
+        echo " (rc=$?)"
+    } >> "$out" 2>&1
+
+    {
+        echo -n "api.anthropic.com     : "
+        curl -sS -m 12 -o /dev/null -w 'http=%{http_code}' https://api.anthropic.com/ </dev/null 2>&1
+        echo " (rc=$?)"
+        echo -n "console.anthropic.com : "
+        curl -sS -m 12 -o /dev/null -w 'http=%{http_code}' https://console.anthropic.com/ </dev/null 2>&1
+        echo " (rc=$?)"
+    } >> "$out" 2>&1
+
+    {
+        echo -n "claude -p test : "
+        timeout -s KILL 45 claude -p 'reply with the word OK' </dev/null > "$tmp" 2>&1
+        echo "(rc=$?)"
+        echo "  output: $(head -c 300 "$tmp" 2>/dev/null | tr '\n' ' ')"
+    } >> "$out" 2>&1
+
+    echo "=== end diagnostics ===" >> "$out"
 
     # Mirror to the add-on Log so it's visible without any file access.
     bashio::log.info "----- Aida startup diagnostics -----"
