@@ -29,10 +29,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-yaml \
     && rm -rf /var/lib/apt/lists/*
 
-# Node.js 22 (glibc build) via NodeSource.
-RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+# Node.js 22 (glibc build) via NodeSource. Download then run (no pipe) so the
+# shell exit status isn't masked.
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x -o /tmp/nodesource_setup.sh \
+    && bash /tmp/nodesource_setup.sh \
     && apt-get install -y --no-install-recommends nodejs \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* /tmp/nodesource_setup.sh
 
 # uv / uvx (used by the ha-mcp integration) via pip.
 RUN pip3 install --break-system-packages --no-cache-dir uv
