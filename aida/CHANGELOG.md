@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.0.9
+
+### 🐛 Bug Fixes
+- **ha-mcp now starts on older / VM CPUs.** The Home Assistant MCP server was
+  showing `✘ failed` in `/mcp` because its dependency chain
+  (`ha-mcp → textdistance → numpy`) pulled NumPy 2.x, whose wheels require
+  x86-64-v2 CPU instructions that many virtualized hosts don't expose (default
+  `kvm64`/`qemu64` models), crashing on import. ha-mcp is now registered with
+  `--with 'numpy<2'`, so it uses the baseline-x86-64 NumPy 1.x that loads
+  everywhere. `/mcp` shows `home-assistant ✔ connected` and Aida can control HA.
+
+> Tip: if Home Assistant runs in a VM, setting the guest CPU type to `host` (or a
+> v2-capable model) fixes this class of issue at the source and lets newer
+> Claude Code builds run too.
+
 ## 1.0.8
 
 ### 🐛 Bug Fixes

@@ -6,6 +6,11 @@
 # We write the MCP server config DIRECTLY into Claude Code's ~/.claude.json
 # instead of calling `claude mcp add`. The CLI can block on first-run prompts;
 # a direct JSON write is instant, deterministic, and never hangs startup.
+#
+# `--with numpy<2`: ha-mcp -> textdistance -> numpy. NumPy 2.x wheels require
+# x86-64-v2 CPU instructions, which older/VM CPUs (e.g. the default kvm64 model)
+# don't have, so ha-mcp crashes on import. NumPy 1.x uses the baseline x86-64
+# ISA and loads everywhere.
 
 configure_ha_mcp_server() {
     local enable_ha_mcp
@@ -35,7 +40,7 @@ configure_ha_mcp_server() {
           "home-assistant": {
             "type": "stdio",
             "command": "uvx",
-            "args": ["--index-strategy", "unsafe-best-match", "ha-mcp@3.5.1"],
+            "args": ["--index-strategy", "unsafe-best-match", "--with", "numpy<2", "ha-mcp@3.5.1"],
             "env": {
               "HOMEASSISTANT_URL": "http://supervisor/core",
               "HOMEASSISTANT_TOKEN": $token
