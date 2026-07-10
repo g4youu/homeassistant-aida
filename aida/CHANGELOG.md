@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.0.8
+
+### 🐛 Bug Fixes
+- **The real fix: pinned Claude Code to 2.1.86.** After a long hunt, the cause of
+  the frozen terminal was never Aida, the base image, memory, or sign-in — it was
+  a **regression in Claude Code itself**. Builds from ~2.1.144 through 2.1.206
+  (what "latest" installed) spin at 100% CPU on startup and never return; even
+  `claude --version` hangs, on both Alpine and Debian, with a pristine config. A
+  live version bisect in the container showed everything up to **2.1.86** works,
+  so the CLI is now pinned there. Claude launches, shows its login, and the whole
+  add-on (sign-in, ha-mcp, bridge) comes alive.
+- Note: 1.0.7's move to a Debian/glibc base is kept — it's the correct base for
+  Claude Code even though the hang turned out to be a CLI regression on top of it.
+
 ## 1.0.7
 
 ### 🐛 Bug Fixes
