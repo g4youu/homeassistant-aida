@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.0.7
+
+### 🐛 Bug Fixes
+- **Moved the add-on to a Debian (glibc) base image.** This is the real fix for
+  Claude Code hanging on startup. Claude and its bundled native helpers require
+  glibc; on the previous Alpine/musl base they never ran — even `claude
+  --version` hung and took the terminal down with it. The `gcompat` shim added in
+  1.0.6 wasn't enough. The image now builds on `*-base-debian:bookworm`, with
+  Node 22 from NodeSource, `ttyd` from its static release, and `uv` via pip.
+
+### 🩺 Diagnostics
+- Startup probes now run under `setsid` (isolated process group) with timing, so
+  a misbehaving probe can't truncate the report and we can tell a hang from a
+  fast crash. Full report still lands in `/config/aida/diagnostics.txt`.
+
 ## 1.0.6
 
 ### 🐛 Bug Fixes

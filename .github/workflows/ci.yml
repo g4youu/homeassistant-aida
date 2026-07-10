@@ -60,6 +60,6 @@ jobs:
           context: ./aida
           file: ./aida/Dockerfile
           build-args: |
-            BUILD_FROM=ghcr.io/home-assistant/amd64-base:3.21
+            BUILD_FROM=ghcr.io/home-assistant/amd64-base-debian:bookworm
           push: false
           tags: local/aida:ci

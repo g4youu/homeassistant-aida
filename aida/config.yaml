@@ -1,7 +1,7 @@
 ---
 name: "Aida"
 description: "Agentic AI assistant for Home Assistant — safe by default, easy multi-method sign-in, powered by Claude Code"
-version: "1.0.6"
+version: "1.0.7"
 slug: "aida"
 init: false
 

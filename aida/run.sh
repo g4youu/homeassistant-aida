@@ -337,10 +337,17 @@ run_diagnostics() {
     # can leave a lingering background child holding the output pipe, which makes
     # command substitution block forever (this is what truncated earlier reports).
     # SIGKILL after the timeout so nothing can survive to wedge the next step.
+    # setsid isolates each probe in its own session/process-group, so if Claude
+    # self-destructs (OOM / group-kill) it can't drag the diagnostics down with
+    # it. Timing distinguishes a hang (~full timeout) from a fast crash.
+    local d0 d1 rc
     {
         echo -n "claude --version : "
-        timeout -s KILL 20 claude --version </dev/null 2>&1
-        echo " (rc=$?)"
+        d0=$(date +%s)
+        setsid timeout -s KILL 25 claude --version </dev/null > "$tmp" 2>&1
+        rc=$?; d1=$(date +%s)
+        head -c 200 "$tmp" 2>/dev/null | tr '\n' ' '
+        echo " (rc=${rc}, $((d1 - d0))s)"
     } >> "$out" 2>&1
 
     {
@@ -354,8 +361,10 @@ run_diagnostics() {
 
     {
         echo -n "claude -p test : "
-        timeout -s KILL 45 claude -p 'reply with the word OK' </dev/null > "$tmp" 2>&1
-        echo "(rc=$?)"
+        d0=$(date +%s)
+        setsid timeout -s KILL 45 claude -p 'reply with the word OK' </dev/null > "$tmp" 2>&1
+        rc=$?; d1=$(date +%s)
+        echo "(rc=${rc}, $((d1 - d0))s)"
         echo "  output: $(head -c 300 "$tmp" 2>/dev/null | tr '\n' ' ')"
     } >> "$out" 2>&1
 
