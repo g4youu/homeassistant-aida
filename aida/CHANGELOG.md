@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.0.4
+
+### 🐛 Bug Fixes
+- **Sign-in now works on installs upgraded from 1.0.1/1.0.2.** Those versions
+  persisted `hasCompletedOnboarding: true` into `/data`, which survives updates.
+  1.0.3 stopped *setting* that flag but never *cleared* it — so Claude still
+  thought it was onboarded, skipped its own login screen, and the terminal
+  opened on a dead `sh` shell. Aida now **removes the stale flag whenever no
+  credentials are present**, so Claude reliably shows its login screen; when
+  you're already signed in it stays pre-completed for a fast, prompt-free start.
+  A default theme is also seeded so the theme picker never blocks.
+- **No more blank/`sh` terminal if Claude exits.** The terminal now launches via
+  a small wrapper (`aida-run`) that drops to a normal shell with guidance
+  (“type `claude` to relaunch, or `sign-in` …”) instead of a bare, confusing
+  prompt.
+
+> Already upgraded and still stuck at a blank terminal? Run this once in the Aida
+> terminal, then complete the login:
+> `jq 'del(.hasCompletedOnboarding)' "$HOME/.claude.json" > /tmp/c && mv /tmp/c "$HOME/.claude.json" && claude`
+
 ## 1.0.3
 
 ### 🐛 Bug Fixes

@@ -43,20 +43,39 @@ init_environment() {
         cp "${AIDA_SCRIPTS}/tmux.conf" "$data_home/.tmux.conf"
     fi
 
-    # Pre-accept the Claude Code trust dialog for /config so it doesn't prompt.
-    # We deliberately do NOT mark onboarding complete — that lets Claude run its
-    # native first-run and show its own login screen. Merge into any existing
-    # config so credentials and MCP registrations are preserved.
+    # Seed Claude Code's first-run state so the terminal is friction-free:
+    #   * accept the /config trust dialog (no prompt),
+    #   * pick a default theme (no theme picker),
+    #   * decide onboarding based on whether we're actually signed in.
+    #
+    # If OAuth credentials already exist, mark onboarding complete so Claude drops
+    # straight into its prompt. If NOT signed in, actively DELETE any leftover
+    # `hasCompletedOnboarding` flag (Aida 1.0.2 persisted it into /data, which
+    # survives updates) so Claude runs its native first-run and shows the login
+    # screen. Without this, an install that was signed out kept skipping login and
+    # opened on a dead shell. Merge into any existing config so credentials and
+    # MCP registrations are preserved.
     local claude_json="$data_home/.claude.json"
+    local signed_in="false"
+    if [ -f "$claude_config_dir/.credentials.json" ] || [ -f "$claude_config_dir/credentials.json" ]; then
+        signed_in="true"
+    fi
     local merged
-    merged=$(jq -n --slurpfile existing <(cat "$claude_json" 2>/dev/null || echo '{}') '
+    merged=$(jq -n --argjson signedin "$signed_in" \
+        --slurpfile existing <(cat "$claude_json" 2>/dev/null || echo '{}') '
         ($existing[0] // {}) as $e |
         $e
+        | .theme = ($e.theme // "dark")
+        | (if $signedin then .hasCompletedOnboarding = true else del(.hasCompletedOnboarding) end)
         | .projects = (($e.projects // {}) * {"/config": (($e.projects["/config"] // {}) + {hasTrustDialogAccepted: true, projectOnboardingSeenCount: 1})})
     ' 2>/dev/null)
     if [ -n "$merged" ]; then
         printf '%s\n' "$merged" > "$claude_json"
-        bashio::log.info "Ensured Claude Code trust settings for /config."
+        if [ "$signed_in" = "true" ]; then
+            bashio::log.info "Claude Code already signed in — onboarding pre-completed."
+        else
+            bashio::log.info "Not signed in — Claude will show its login screen on launch."
+        fi
     fi
 
     bashio::log.info "  HOME=$HOME"
@@ -241,7 +260,7 @@ start_bridge() {
 # Web terminal
 # ---------------------------------------------------------------------------
 install_helpers() {
-    for s in sign-in aida-context welcome persist-install session-picker; do
+    for s in sign-in aida-context welcome persist-install session-picker aida-run; do
         if [ -f "${AIDA_SCRIPTS}/${s}.sh" ]; then
             cp "${AIDA_SCRIPTS}/${s}.sh" "/usr/local/bin/${s}"
             chmod +x "/usr/local/bin/${s}"
@@ -251,14 +270,15 @@ install_helpers() {
 }
 
 get_launch_command() {
-    local prefix=""
-    [ -f /usr/local/bin/welcome ] && prefix="welcome; "
-
-    # Let Claude drive its own login on first launch (it shows the login link
-    # natively). Run `sign-in` manually only to switch methods or paste a key.
+    # Auto-launch drops into Claude via a small wrapper (aida-run) that shows the
+    # banner, launches Claude, and — if Claude ever exits — leaves a usable shell
+    # with guidance instead of a blank prompt. The wrapper runs *inside* tmux so
+    # the banner is visible in the pane and the session survives reconnects.
     if [ "$(bashio::config 'auto_launch' 'true')" = "true" ]; then
-        echo "${prefix}tmux new-session -A -s aida 'claude --permission-mode ${AIDA_PERMISSION_MODE:-default}'"
+        echo "tmux new-session -A -s aida aida-run"
     else
+        local prefix=""
+        [ -f /usr/local/bin/welcome ] && prefix="welcome; "
         echo "${prefix}session-picker"
     fi
 }
