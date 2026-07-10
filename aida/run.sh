@@ -35,6 +35,15 @@ init_environment() {
     export XDG_DATA_HOME="/data/.local/share"
     export ANTHROPIC_CONFIG_DIR="$claude_config_dir"
 
+    # Stop Claude Code's boot-time non-essential network calls (auto-updater,
+    # telemetry, error reporting). In a locked-down add-on container these can
+    # hang with no output — the terminal shows the banner and then freezes.
+    # Disabling them lets Claude go straight to its login/prompt.
+    export DISABLE_AUTOUPDATER=1
+    export DISABLE_TELEMETRY=1
+    export DISABLE_ERROR_REPORTING=1
+    export CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1
+
     # Make Aida scripts callable by short name from the terminal
     export PATH="${AIDA_SCRIPTS}:${PATH}"
 
@@ -306,6 +315,40 @@ start_web_terminal() {
 }
 
 # ---------------------------------------------------------------------------
+# Startup diagnostics
+# ---------------------------------------------------------------------------
+# Runs in the background so it never delays the terminal. Writes to the add-on
+# Log AND to /config/aida/diagnostics.txt (openable in Studio Code Server), so
+# we can see why Claude misbehaves even when the interactive terminal is stuck.
+run_diagnostics() {
+    local out="${AIDA_STATE}/diagnostics.txt"
+    {
+        echo "=== Aida diagnostics $(date -u '+%Y-%m-%d %H:%M:%S UTC') ==="
+        echo "addon-version : $(cat "${AIDA_HOME}/addon-version" 2>/dev/null || echo '?')"
+        echo "arch          : $(uname -m)"
+        echo "libc          : $(ls /lib/ld-musl-* >/dev/null 2>&1 && echo musl || echo glibc)"
+        echo "node          : $(node --version 2>&1)"
+        echo "which claude  : $(command -v claude 2>&1)"
+        local v rc
+        v=$(timeout 15 claude --version 2>&1); rc=$?
+        echo "claude --version : rc=${rc} :: ${v}"
+        local http
+        http=$(curl -sS -m 12 -o /dev/null -w '%{http_code}' https://api.anthropic.com/ 2>&1); rc=$?
+        echo "api.anthropic.com     : http=${http} curl_rc=${rc}"
+        http=$(curl -sS -m 12 -o /dev/null -w '%{http_code}' https://console.anthropic.com/ 2>&1); rc=$?
+        echo "console.anthropic.com : http=${http} curl_rc=${rc}"
+        local pout prc
+        pout=$(printf '' | timeout 30 claude -p 'reply with the word OK' 2>&1 | head -c 400); prc=$?
+        echo "claude -p test : rc=${prc} :: ${pout}"
+        echo "=== end diagnostics ==="
+    } > "$out" 2>&1
+
+    # Mirror to the add-on Log so it's visible without any file access.
+    bashio::log.info "----- Aida startup diagnostics -----"
+    while IFS= read -r line; do bashio::log.info "diag| ${line}"; done < "$out"
+}
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 main() {
@@ -323,6 +366,9 @@ main() {
     # to run inline before the terminal.
     setup_ha_mcp                || bashio::log.warning "ha-mcp setup skipped"
     start_bridge                || bashio::log.warning "bridge start skipped"
+
+    # Background health probe — logs why Claude misbehaves without delaying start.
+    run_diagnostics &
 
     # Always start the terminal last.
     start_web_terminal

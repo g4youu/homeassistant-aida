@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.0.5
+
+### 🐛 Bug Fixes
+- **Terminal froze after the banner (Claude hung on startup).** In a locked-down
+  add-on container, Claude Code's boot-time non-essential network calls
+  (auto-updater, telemetry, error reporting) could stall with no output — the
+  banner showed and then everything you typed was swallowed. Aida now disables
+  those calls (`CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1`,
+  `DISABLE_AUTOUPDATER=1`, …) so Claude goes straight to its login/prompt.
+
+### 🩺 Diagnostics
+- On every start Aida now writes a short health probe to the **add-on Log** and
+  to **`/config/aida/diagnostics.txt`** (openable in Studio Code Server): arch,
+  libc, Node/Claude versions, connectivity to Anthropic, and a headless Claude
+  test. It runs in the background and never delays the terminal.
+
 ## 1.0.4
 
 ### 🐛 Bug Fixes
