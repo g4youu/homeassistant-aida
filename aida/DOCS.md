@@ -18,7 +18,19 @@
 | `enable_ha_mcp` | `true` | Register the Home Assistant MCP server for entity control. |
 | `enable_bridge` | `true` | Run the conversation bridge (HTTP API on port 7682). |
 | `bridge_require_token` | `true` | Require a Bearer token for bridge requests. |
-| `persistent_apk_packages` / `persistent_pip_packages` | `[]` | Extra packages reinstalled on every start. |
+| `claude_version` | `auto` | Which Claude Code build to run. `auto` uses the bundled latest on CPUs with x86-64-v2 and falls back to a compatible build on older/VM CPUs; `latest` always uses the bundled build; or set a specific version (e.g. `2.1.86`) to pin it. |
+| `persistent_apk_packages` / `persistent_pip_packages` | `[]` | Extra packages reinstalled on every start (system packages via `apt`, Python via `pip`). |
+
+### About `claude_version`
+
+Recent Claude Code builds need **x86-64-v2** CPU instructions. On hosts that
+don't expose them — most often a VM using the default `kvm64`/`qemu64` CPU model
+— those builds spin at 100% CPU on startup and the terminal never appears. With
+`claude_version: auto` (the default) Aida detects this at boot and transparently
+runs the newest compatible build instead, cached under `/data`. The better
+long-term fix is to give the VM real CPU instructions: set its **CPU type to
+`host` / host-passthrough** (Proxmox, TrueNAS, ESXi, libvirt…), after which
+`auto` switches back to the latest build automatically.
 
 ## How safety is enforced
 

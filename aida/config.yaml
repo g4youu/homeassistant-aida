@@ -1,7 +1,7 @@
 ---
 name: "Aida"
 description: "Agentic AI assistant for Home Assistant — safe by default, easy multi-method sign-in, powered by Claude Code"
-version: "1.0.9"
+version: "1.0.10"
 slug: "aida"
 init: false
 
@@ -48,6 +48,7 @@ options:
   enable_ha_mcp: true
   enable_bridge: true
   bridge_require_token: true
+  claude_version: "auto"
   # --- Packages ---
   persistent_apk_packages: []
   persistent_pip_packages: []
@@ -76,6 +77,7 @@ schema:
   enable_ha_mcp: "bool?"
   enable_bridge: "bool?"
   bridge_require_token: "bool?"
+  claude_version: "str?"
   # Packages
   persistent_apk_packages:
     - "str"

@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.0.10
+
+### 🚀 Improvements
+- **Dynamic Claude Code version — latest for everyone, compatible for old CPUs.**
+  The image now bundles the **latest** Claude Code again (1.0.8 had pinned an
+  older build to work around the startup spin). At boot Aida detects whether the
+  CPU exposes **x86-64-v2** instructions: capable CPUs (the vast majority) run
+  the latest build; CPUs that lack them — typically VMs on the default
+  `kvm64`/`qemu64` model — transparently fall back to the newest compatible
+  build (2.1.86), installed once and cached under `/data`. Fix your VM CPU (set
+  it to *host passthrough*) and the next boot auto-switches back to latest.
+- **New `claude_version` option** (default `auto`): `auto` picks per-CPU as
+  above, `latest` always uses the bundled build, or set a specific version
+  (e.g. `2.1.86`) to pin it yourself.
+
 ## 1.0.9
 
 ### 🐛 Bug Fixes

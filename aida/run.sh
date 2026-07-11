@@ -181,6 +181,68 @@ setup_authentication() {
 }
 
 # ---------------------------------------------------------------------------
+# Claude Code version selection (CPU compatibility)
+# ---------------------------------------------------------------------------
+# The image bundles the latest Claude Code. Recent builds require x86-64-v2 CPU
+# instructions and spin at 100% CPU on startup on older / virtualized CPUs that
+# don't expose them (e.g. the default kvm64/qemu64 VM model). On such CPUs we
+# transparently fall back to the newest build that still runs there, cached under
+# /data so it installs only once. Override with the `claude_version` option:
+#   auto (default) — latest on capable CPUs, a compatible fallback otherwise
+#   latest         — always use the bundled latest
+#   <x.y.z>        — pin a specific version
+CLAUDE_FALLBACK_VERSION="2.1.86"
+CLAUDE_NPM_PREFIX="/data/npm-global"
+
+cpu_supports_x86_64_v2() {
+    # sse4_2 + popcnt are the instructions minimal VM CPU models omit; their
+    # presence reliably marks an x86-64-v2-capable CPU.
+    grep -qim1 '\bsse4_2\b' /proc/cpuinfo && grep -qim1 '\bpopcnt\b' /proc/cpuinfo
+}
+
+# Install a specific Claude Code version into a persistent, PATH-prioritised
+# prefix under /data (cached across restarts). Falls through to the bundled
+# version if the install fails.
+install_pinned_claude() {
+    local ver="$1"
+    if [ -x "${CLAUDE_NPM_PREFIX}/bin/claude" ] \
+       && [ "$(cat "${CLAUDE_NPM_PREFIX}/.claude-version" 2>/dev/null)" = "$ver" ]; then
+        export PATH="${CLAUDE_NPM_PREFIX}/bin:${PATH}"
+        return 0
+    fi
+    bashio::log.info "Installing Claude Code ${ver} (one-time, cached in ${CLAUDE_NPM_PREFIX})..."
+    if npm install --prefix "${CLAUDE_NPM_PREFIX}" -g "@anthropic-ai/claude-code@${ver}" >/dev/null 2>&1; then
+        echo "$ver" > "${CLAUDE_NPM_PREFIX}/.claude-version"
+        export PATH="${CLAUDE_NPM_PREFIX}/bin:${PATH}"
+        bashio::log.info "Using Claude Code ${ver}."
+    else
+        bashio::log.warning "Could not install Claude Code ${ver} (network?); using the bundled version."
+    fi
+}
+
+setup_claude_runtime() {
+    local choice
+    choice=$(bashio::config 'claude_version' 'auto')
+    case "$choice" in
+        latest)
+            bashio::log.info "Claude Code: using bundled latest (claude_version=latest)."
+            ;;
+        ""|auto)
+            if cpu_supports_x86_64_v2; then
+                bashio::log.info "Claude Code: CPU supports x86-64-v2 — using bundled latest."
+            else
+                bashio::log.warning "Claude Code: CPU lacks x86-64-v2 — pinning ${CLAUDE_FALLBACK_VERSION} for compatibility."
+                install_pinned_claude "${CLAUDE_FALLBACK_VERSION}"
+            fi
+            ;;
+        *)
+            bashio::log.info "Claude Code: pinning ${choice} (claude_version=${choice})."
+            install_pinned_claude "${choice}"
+            ;;
+    esac
+}
+
+# ---------------------------------------------------------------------------
 # Persistent packages
 # ---------------------------------------------------------------------------
 install_persistent_packages() {
@@ -196,10 +258,13 @@ install_persistent_packages() {
     apk_packages=$(echo "$apk_packages" | xargs)
     pip_packages=$(echo "$pip_packages" | xargs)
 
+    # Note: the option is still named persistent_apk_packages for config
+    # compatibility, but the image is Debian now, so these are apt packages.
     if [ -n "$apk_packages" ]; then
-        bashio::log.info "Installing APK packages: $apk_packages"
+        bashio::log.info "Installing system packages: $apk_packages"
         # shellcheck disable=SC2086
-        apk add --no-cache $apk_packages || bashio::log.warning "Some APK packages failed"
+        { apt-get update && apt-get install -y --no-install-recommends $apk_packages; } \
+            || bashio::log.warning "Some system packages failed"
     fi
     if [ -n "$pip_packages" ]; then
         bashio::log.info "Installing pip packages: $pip_packages"
@@ -387,6 +452,7 @@ main() {
 
     # Optional steps — must never block or abort the web terminal.
     install_persistent_packages || bashio::log.warning "persistent packages step skipped"
+    setup_claude_runtime        || bashio::log.warning "claude version selection had an issue"
     generate_ha_context         || bashio::log.warning "context generation skipped"
 
     # ha-mcp is now a direct JSON write (instant, no subprocess), so it's safe

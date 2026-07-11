@@ -2,14 +2,13 @@ build_from:
   aarch64: ghcr.io/home-assistant/aarch64-base-debian:bookworm
   amd64: ghcr.io/home-assistant/amd64-base-debian:bookworm
 
-# Pin the Claude Code CLI version.
-# NOTE: Claude Code 2.1.9x+ (through at least 2.1.206) spins at 100% CPU on
-# startup in this container and never returns — even `claude --version` hangs,
-# regardless of libc, memory, or config. Live bisect showed everything up to
-# 2.1.86 works and >= ~2.1.144 is broken, so we pin the newest known-good build.
-# Re-test newer releases before bumping this.
+# Claude Code CLI version bundled into the image. Kept at "latest" for the
+# majority of users on modern CPUs. On CPUs without x86-64-v2 (older / default
+# VM CPU models), recent Claude builds spin at 100% CPU on startup, so run.sh
+# detects that at boot and transparently falls back to a compatible build —
+# see the `claude_version` option and setup_claude_runtime() in run.sh.
 args:
-  CLAUDE_CODE_VERSION: "2.1.86"
+  CLAUDE_CODE_VERSION: "latest"
 
 labels:
   org.opencontainers.image.title: "Home Assistant Add-on: Aida"
