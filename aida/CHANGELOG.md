@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.0.11
+
+### 🚀 Improvements
+- **Sign-in churn reduced.** The startup health probe no longer makes a headless
+  `claude -p` API call on every boot — that call spent tokens and touched the
+  shared OAuth credential file, which can contribute to getting signed out. The
+  cheap checks (arch, libc, versions, connectivity) still run; the API probe is
+  now opt-in via the new **`diagnostics`** option (default `false`).
+
+### 🧪 Project / CI
+- **Tests.** Added a plain bash+jq test suite (`tests/test-run.sh`) covering the
+  things that caused real breakage: x86-64-v2 CPU detection, the `.claude.json`
+  onboarding merge, and the ha-mcp `numpy<2` pin. Runs in CI.
+- **Container smoke test in CI.** Each build now boots the image and asserts
+  `claude --version` returns and ha-mcp imports/starts — so regressions like the
+  Claude startup spin or the NumPy crash get caught automatically.
+- **aarch64 is now built in CI** too (previously amd64 only), so ARM builds
+  can't break silently.
+- **Prebuilt-image pipeline.** Added a workflow to publish multi-arch images to
+  GHCR so HA can pull instead of building locally (see the rollout notes in
+  `.github/workflows/release.yml`).
+- Added a `LICENSE` file (MIT).
+
 ## 1.0.10
 
 ### 🚀 Improvements

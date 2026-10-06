@@ -196,8 +196,10 @@ CLAUDE_NPM_PREFIX="/data/npm-global"
 
 cpu_supports_x86_64_v2() {
     # sse4_2 + popcnt are the instructions minimal VM CPU models omit; their
-    # presence reliably marks an x86-64-v2-capable CPU.
-    grep -qim1 '\bsse4_2\b' /proc/cpuinfo && grep -qim1 '\bpopcnt\b' /proc/cpuinfo
+    # presence reliably marks an x86-64-v2-capable CPU. The flags source defaults
+    # to /proc/cpuinfo; a path can be passed for testing.
+    local src="${1:-/proc/cpuinfo}"
+    grep -qim1 '\bsse4_2\b' "$src" && grep -qim1 '\bpopcnt\b' "$src"
 }
 
 # Install a specific Claude Code version into a persistent, PATH-prioritised
@@ -424,14 +426,22 @@ run_diagnostics() {
         echo " (rc=$?)"
     } >> "$out" 2>&1
 
-    {
-        echo -n "claude -p test : "
-        d0=$(date +%s)
-        setsid timeout -s KILL 45 claude -p 'reply with the word OK' </dev/null > "$tmp" 2>&1
-        rc=$?; d1=$(date +%s)
-        echo "(rc=${rc}, $((d1 - d0))s)"
-        echo "  output: $(head -c 300 "$tmp" 2>/dev/null | tr '\n' ' ')"
-    } >> "$out" 2>&1
+    # The headless `claude -p` probe authenticates and spends tokens, and it
+    # touches the shared OAuth credential file — so it's opt-in to avoid
+    # unnecessary API calls and sign-in churn. Enable with the `diagnostics`
+    # option when you actually need it. The checks above are cheap and always run.
+    if [ "$(bashio::config 'diagnostics' 'false')" = "true" ]; then
+        {
+            echo -n "claude -p test : "
+            d0=$(date +%s)
+            setsid timeout -s KILL 45 claude -p 'reply with the word OK' </dev/null > "$tmp" 2>&1
+            rc=$?; d1=$(date +%s)
+            echo "(rc=${rc}, $((d1 - d0))s)"
+            echo "  output: $(head -c 300 "$tmp" 2>/dev/null | tr '\n' ' ')"
+        } >> "$out" 2>&1
+    else
+        echo "claude -p test : skipped (set the 'diagnostics' option to true to run it)" >> "$out"
+    fi
 
     echo "=== end diagnostics ===" >> "$out"
 
@@ -467,4 +477,8 @@ main() {
     start_web_terminal
 }
 
-main "$@"
+# `main` runs on normal execution. The test suite sets AIDA_SOURCE_ONLY=1 to
+# source this file and exercise individual functions without starting the add-on.
+if [ -z "${AIDA_SOURCE_ONLY:-}" ]; then
+    main "$@"
+fi

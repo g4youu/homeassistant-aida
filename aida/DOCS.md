@@ -19,6 +19,7 @@
 | `enable_bridge` | `true` | Run the conversation bridge (HTTP API on port 7682). |
 | `bridge_require_token` | `true` | Require a Bearer token for bridge requests. |
 | `claude_version` | `auto` | Which Claude Code build to run. `auto` uses the bundled latest on CPUs with x86-64-v2 and falls back to a compatible build on older/VM CPUs; `latest` always uses the bundled build; or set a specific version (e.g. `2.1.86`) to pin it. |
+| `diagnostics` | `false` | When `true`, the startup health probe also runs a headless `claude -p` test (writes to `/config/aida/diagnostics.txt`). It makes an API call, so it's off by default; enable it only when troubleshooting. |
 | `persistent_apk_packages` / `persistent_pip_packages` | `[]` | Extra packages reinstalled on every start (system packages via `apt`, Python via `pip`). |
 
 ### About `claude_version`

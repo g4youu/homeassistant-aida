@@ -1,0 +1,58 @@
+name: Publish add-on images
+
+# Builds multi-arch Aida images and pushes them to GHCR, so Home Assistant can
+# PULL a prebuilt image instead of building the whole Debian + Node + ttyd image
+# on every host (faster installs/updates, fewer build-time failures).
+#
+# ── First-time rollout (do this once) ───────────────────────────────────────
+#   1. Trigger this workflow: Actions → "Publish add-on images" → Run workflow
+#      (or publish a GitHub Release). It builds and pushes, tagged with the
+#      version from aida/config.yaml and `latest`:
+#          ghcr.io/g4youu/amd64-addon-aida
+#          ghcr.io/g4youu/aarch64-addon-aida
+#   2. GitHub → your profile → Packages: set BOTH packages to Public.
+#   3. Only AFTER a successful push, add this line to aida/config.yaml so HA
+#      pulls instead of builds:
+#          image: "ghcr.io/g4youu/{arch}-addon-aida"
+#      (Adding it before the images exist would make fresh installs fail to pull.)
+# ─────────────────────────────────────────────────────────────────────────────
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    name: Publish ${{ matrix.arch }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, aarch64]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push (${{ matrix.arch }})
+        uses: home-assistant/builder@master
+        with:
+          args: >-
+            --${{ matrix.arch }}
+            --target aida
+            --image "{arch}-addon-aida"
+            --docker-hub "ghcr.io/g4youu"
+            --addon
