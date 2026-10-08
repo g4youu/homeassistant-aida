@@ -3,8 +3,8 @@
 
 sign_in() {
     local cfg="${ANTHROPIC_CONFIG_DIR:-$HOME/.config/claude}"
-    if [ -n "$ANTHROPIC_API_KEY" ] || [ "$CLAUDE_CODE_USE_BEDROCK" = "1" ] || \
-       [ "$CLAUDE_CODE_USE_VERTEX" = "1" ] || \
+    if [ -n "$ANTHROPIC_API_KEY" ] || [ -n "$CLAUDE_CODE_OAUTH_TOKEN" ] || \
+       [ "$CLAUDE_CODE_USE_BEDROCK" = "1" ] || [ "$CLAUDE_CODE_USE_VERTEX" = "1" ] || \
        [ -f "$cfg/.credentials.json" ] || [ -f "$cfg/credentials.json" ]; then
         echo "#[fg=colour114]Signed in"
     else

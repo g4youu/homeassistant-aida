@@ -93,10 +93,14 @@ jobs:
         if: matrix.arch == 'amd64'
         run: docker run --rm --entrypoint bash local/aida:ci -c 'timeout 40 claude --version'
 
-      - name: Smoke test — ha-mcp imports and starts (numpy<2)
+      # Verify the ha-mcp dependency chain (ha-mcp -> textdistance -> numpy)
+      # imports cleanly. NumPy 2.x wheels need x86-64-v2 and crash on import on
+      # older/VM CPUs; the --with 'numpy<2' pin is what keeps this working. A
+      # full server start needs Home Assistant, so we only check the import here.
+      - name: Smoke test — ha-mcp imports (numpy<2 loads)
         if: matrix.arch == 'amd64'
+        timeout-minutes: 8
         run: |
-          docker run --rm --entrypoint bash local/aida:ci -c \
-            'timeout 200 uvx --index-strategy unsafe-best-match --with "numpy<2" ha-mcp@3.5.1 </dev/null 2>&1 | head -15' \
-            | tee ha-mcp.out
-          grep -qiE "Starting MCP server|FastMCP" ha-mcp.out
+          docker run --rm --entrypoint uvx local/aida:ci \
+            --index-strategy unsafe-best-match --with 'numpy<2' --from ha-mcp@3.5.1 \
+            python -c 'import numpy, ha_mcp; print("ha-mcp + numpy import OK:", numpy.__version__)'

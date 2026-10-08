@@ -33,6 +33,7 @@ options:
   # --- Sign-in ---
   auth_method: "oauth"
   anthropic_api_key: ""
+  claude_oauth_token: ""
   # --- Safety ---
   mode: "assisted"
   entity_denylist:
@@ -57,6 +58,7 @@ schema:
   # Sign-in
   auth_method: "list(oauth|api_key|bedrock|vertex)"
   anthropic_api_key: "password?"
+  claude_oauth_token: "password?"
   aws_region: "str?"
   aws_access_key_id: "str?"
   aws_secret_access_key: "password?"

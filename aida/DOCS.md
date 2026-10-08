@@ -6,6 +6,7 @@
 |--------|---------|-------------|
 | `auth_method` | `oauth` | Sign-in method: `oauth`, `api_key`, `bedrock`, `vertex`. |
 | `anthropic_api_key` | `""` | API key (used when `auth_method: api_key`). Stored as a password field. |
+| `claude_oauth_token` | `""` | Long-lived OAuth token from `claude setup-token` (keeps you signed in on a Pro/Max subscription without API billing). Password field; exported as `CLAUDE_CODE_OAUTH_TOKEN`. See "Staying signed in" below. |
 | `aws_region` / `aws_access_key_id` / `aws_secret_access_key` / `bedrock_model` | – | Amazon Bedrock credentials (when `auth_method: bedrock`). |
 | `gcp_project` / `gcp_region` / `vertex_model` | – | Google Vertex AI settings (when `auth_method: vertex`). |
 | `mode` | `assisted` | Safety mode: `read-only`, `assisted`, `autonomous`. |
@@ -32,6 +33,26 @@ runs the newest compatible build instead, cached under `/data`. The better
 long-term fix is to give the VM real CPU instructions: set its **CPU type to
 `host` / host-passthrough** (Proxmox, TrueNAS, ESXi, libvirt…), after which
 `auto` switches back to the latest build automatically.
+
+## Staying signed in (Pro/Max)
+
+Interactive OAuth sessions are designed for a person at a terminal, so an
+always-on add-on will periodically get logged out (the short-lived session
+expires and needs re-approval). To stay signed in **on your Claude subscription
+without switching to pay-per-token API billing**, use a long-lived token:
+
+1. In the Aida terminal, run `sign-in` and choose **"Stay signed in"** (or run
+   `claude setup-token` directly). Open the link it shows, approve, and paste the
+   code back; it prints a **token**.
+2. Save the token either way:
+   - the `sign-in` helper offers to save it to `/config/aida/oauth-token` for you, or
+   - paste it into the add-on's **`claude_oauth_token`** config field.
+3. Restart the add-on. Aida exports it as `CLAUDE_CODE_OAUTH_TOKEN` and no longer
+   gets logged out.
+
+Keep that token secret — treat it like a password. It's stored `chmod 600` and
+the guard policy blocks the model from reading it. Also keep the host clock
+**NTP-synced**: clock drift makes Claude think tokens expired early.
 
 ## How safety is enforced
 

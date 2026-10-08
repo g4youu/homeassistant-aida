@@ -3,6 +3,12 @@
 ## 1.0.11
 
 ### 🚀 Improvements
+- **Stay signed in on a Pro/Max subscription.** New **long-lived OAuth token**
+  support: generate one with `claude setup-token` (no API billing — it's your
+  subscription), and Aida stops getting logged out every few days. Set it in the
+  new **`claude_oauth_token`** config field, or via `sign-in` → "Stay signed in",
+  which saves it to `/config/aida/oauth-token` (chmod `600`, blocked from the
+  model by the guard policy). Aida exports it as `CLAUDE_CODE_OAUTH_TOKEN`.
 - **Sign-in churn reduced.** The startup health probe no longer makes a headless
   `claude -p` API call on every boot — that call spent tokens and touched the
   shared OAuth credential file, which can contribute to getting signed out. The

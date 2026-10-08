@@ -172,10 +172,27 @@ setup_authentication() {
             bashio::log.info "Google Vertex AI sign-in configured."
             ;;
         oauth|*)
-            # Interactive OAuth (Claude Pro/Max or Console login). Credentials
-            # persist in $ANTHROPIC_CONFIG_DIR under /data. If not yet signed in,
-            # the terminal's first run guides the user via 'sign-in'.
-            bashio::log.info "OAuth sign-in — log in on first terminal launch (or run 'sign-in')."
+            # Prefer a long-lived OAuth token (from `claude setup-token`). On an
+            # always-on add-on this keeps you signed in on a Pro/Max subscription
+            # without the short-lived interactive session expiring every few days,
+            # and without API billing. Config field first, then a file for those
+            # who'd rather not store it in the add-on config.
+            local token=""
+            if bashio::config.has_value 'claude_oauth_token'; then
+                token=$(bashio::config 'claude_oauth_token')
+            fi
+            if [ -z "$token" ] && [ -f "${AIDA_STATE}/oauth-token" ]; then
+                token=$(tr -d '[:space:]' < "${AIDA_STATE}/oauth-token")
+            fi
+            if [ -n "$token" ]; then
+                export CLAUDE_CODE_OAUTH_TOKEN="$token"
+                bashio::log.info "Long-lived OAuth token configured — stays signed in."
+            else
+                # Interactive OAuth. Credentials persist in $ANTHROPIC_CONFIG_DIR
+                # under /data; the terminal's first run guides the user via 'sign-in'.
+                bashio::log.info "OAuth sign-in — log in on first terminal launch (or run 'sign-in')."
+                bashio::log.info "Tip: run 'sign-in' -> long-lived token to stay signed in."
+            fi
             ;;
     esac
 }
