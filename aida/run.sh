@@ -172,10 +172,27 @@ setup_authentication() {
             bashio::log.info "Google Vertex AI sign-in configured."
             ;;
         oauth|*)
-            # Interactive OAuth (Claude Pro/Max or Console login). Credentials
-            # persist in $ANTHROPIC_CONFIG_DIR under /data. If not yet signed in,
-            # the terminal's first run guides the user via 'sign-in'.
-            bashio::log.info "OAuth sign-in — log in on first terminal launch (or run 'sign-in')."
+            # Prefer a long-lived OAuth token (from `claude setup-token`). On an
+            # always-on add-on this keeps you signed in on a Pro/Max subscription
+            # without the short-lived interactive session expiring every few days,
+            # and without API billing. Config field first, then a file for those
+            # who'd rather not store it in the add-on config.
+            local token=""
+            if bashio::config.has_value 'claude_oauth_token'; then
+                token=$(bashio::config 'claude_oauth_token')
+            fi
+            if [ -z "$token" ] && [ -f "${AIDA_STATE}/oauth-token" ]; then
+                token=$(tr -d '[:space:]' < "${AIDA_STATE}/oauth-token")
+            fi
+            if [ -n "$token" ]; then
+                export CLAUDE_CODE_OAUTH_TOKEN="$token"
+                bashio::log.info "Long-lived OAuth token configured — stays signed in."
+            else
+                # Interactive OAuth. Credentials persist in $ANTHROPIC_CONFIG_DIR
+                # under /data; the terminal's first run guides the user via 'sign-in'.
+                bashio::log.info "OAuth sign-in — log in on first terminal launch (or run 'sign-in')."
+                bashio::log.info "Tip: run 'sign-in' -> long-lived token to stay signed in."
+            fi
             ;;
     esac
 }
@@ -196,8 +213,10 @@ CLAUDE_NPM_PREFIX="/data/npm-global"
 
 cpu_supports_x86_64_v2() {
     # sse4_2 + popcnt are the instructions minimal VM CPU models omit; their
-    # presence reliably marks an x86-64-v2-capable CPU.
-    grep -qim1 '\bsse4_2\b' /proc/cpuinfo && grep -qim1 '\bpopcnt\b' /proc/cpuinfo
+    # presence reliably marks an x86-64-v2-capable CPU. The flags source defaults
+    # to /proc/cpuinfo; a path can be passed for testing.
+    local src="${1:-/proc/cpuinfo}"
+    grep -qim1 '\bsse4_2\b' "$src" && grep -qim1 '\bpopcnt\b' "$src"
 }
 
 # Install a specific Claude Code version into a persistent, PATH-prioritised
@@ -424,14 +443,22 @@ run_diagnostics() {
         echo " (rc=$?)"
     } >> "$out" 2>&1
 
-    {
-        echo -n "claude -p test : "
-        d0=$(date +%s)
-        setsid timeout -s KILL 45 claude -p 'reply with the word OK' </dev/null > "$tmp" 2>&1
-        rc=$?; d1=$(date +%s)
-        echo "(rc=${rc}, $((d1 - d0))s)"
-        echo "  output: $(head -c 300 "$tmp" 2>/dev/null | tr '\n' ' ')"
-    } >> "$out" 2>&1
+    # The headless `claude -p` probe authenticates and spends tokens, and it
+    # touches the shared OAuth credential file — so it's opt-in to avoid
+    # unnecessary API calls and sign-in churn. Enable with the `diagnostics`
+    # option when you actually need it. The checks above are cheap and always run.
+    if [ "$(bashio::config 'diagnostics' 'false')" = "true" ]; then
+        {
+            echo -n "claude -p test : "
+            d0=$(date +%s)
+            setsid timeout -s KILL 45 claude -p 'reply with the word OK' </dev/null > "$tmp" 2>&1
+            rc=$?; d1=$(date +%s)
+            echo "(rc=${rc}, $((d1 - d0))s)"
+            echo "  output: $(head -c 300 "$tmp" 2>/dev/null | tr '\n' ' ')"
+        } >> "$out" 2>&1
+    else
+        echo "claude -p test : skipped (set the 'diagnostics' option to true to run it)" >> "$out"
+    fi
 
     echo "=== end diagnostics ===" >> "$out"
 
@@ -467,4 +494,8 @@ main() {
     start_web_terminal
 }
 
-main "$@"
+# `main` runs on normal execution. The test suite sets AIDA_SOURCE_ONLY=1 to
+# source this file and exercise individual functions without starting the add-on.
+if [ -z "${AIDA_SOURCE_ONLY:-}" ]; then
+    main "$@"
+fi

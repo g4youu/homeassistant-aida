@@ -6,6 +6,7 @@
 |--------|---------|-------------|
 | `auth_method` | `oauth` | Sign-in method: `oauth`, `api_key`, `bedrock`, `vertex`. |
 | `anthropic_api_key` | `""` | API key (used when `auth_method: api_key`). Stored as a password field. |
+| `claude_oauth_token` | `""` | Long-lived OAuth token from `claude setup-token` (keeps you signed in on a Pro/Max subscription without API billing). Password field; exported as `CLAUDE_CODE_OAUTH_TOKEN`. See "Staying signed in" below. |
 | `aws_region` / `aws_access_key_id` / `aws_secret_access_key` / `bedrock_model` | – | Amazon Bedrock credentials (when `auth_method: bedrock`). |
 | `gcp_project` / `gcp_region` / `vertex_model` | – | Google Vertex AI settings (when `auth_method: vertex`). |
 | `mode` | `assisted` | Safety mode: `read-only`, `assisted`, `autonomous`. |
@@ -19,6 +20,7 @@
 | `enable_bridge` | `true` | Run the conversation bridge (HTTP API on port 7682). |
 | `bridge_require_token` | `true` | Require a Bearer token for bridge requests. |
 | `claude_version` | `auto` | Which Claude Code build to run. `auto` uses the bundled latest on CPUs with x86-64-v2 and falls back to a compatible build on older/VM CPUs; `latest` always uses the bundled build; or set a specific version (e.g. `2.1.86`) to pin it. |
+| `diagnostics` | `false` | When `true`, the startup health probe also runs a headless `claude -p` test (writes to `/config/aida/diagnostics.txt`). It makes an API call, so it's off by default; enable it only when troubleshooting. |
 | `persistent_apk_packages` / `persistent_pip_packages` | `[]` | Extra packages reinstalled on every start (system packages via `apt`, Python via `pip`). |
 
 ### About `claude_version`
@@ -31,6 +33,26 @@ runs the newest compatible build instead, cached under `/data`. The better
 long-term fix is to give the VM real CPU instructions: set its **CPU type to
 `host` / host-passthrough** (Proxmox, TrueNAS, ESXi, libvirt…), after which
 `auto` switches back to the latest build automatically.
+
+## Staying signed in (Pro/Max)
+
+Interactive OAuth sessions are designed for a person at a terminal, so an
+always-on add-on will periodically get logged out (the short-lived session
+expires and needs re-approval). To stay signed in **on your Claude subscription
+without switching to pay-per-token API billing**, use a long-lived token:
+
+1. In the Aida terminal, run `sign-in` and choose **"Stay signed in"** (or run
+   `claude setup-token` directly). Open the link it shows, approve, and paste the
+   code back; it prints a **token**.
+2. Save the token either way:
+   - the `sign-in` helper offers to save it to `/config/aida/oauth-token` for you, or
+   - paste it into the add-on's **`claude_oauth_token`** config field.
+3. Restart the add-on. Aida exports it as `CLAUDE_CODE_OAUTH_TOKEN` and no longer
+   gets logged out.
+
+Keep that token secret — treat it like a password. It's stored `chmod 600` and
+the guard policy blocks the model from reading it. Also keep the host clock
+**NTP-synced**: clock drift makes Claude think tokens expired early.
 
 ## How safety is enforced
 

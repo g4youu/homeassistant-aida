@@ -19,9 +19,13 @@ DIM='\033[2m'
 BOLD='\033[1m'
 NC='\033[0m'
 
+TOKEN_FILE="${STATE_DIR}/oauth-token"
+
 is_signed_in() {
-    # API-key / Bedrock / Vertex are configured via env — presence == signed in.
+    # API-key / Bedrock / Vertex / long-lived token are env-configured — presence == signed in.
     [ -n "$ANTHROPIC_API_KEY" ] && return 0
+    [ -n "$CLAUDE_CODE_OAUTH_TOKEN" ] && return 0
+    [ -f "$TOKEN_FILE" ] && return 0
     [ "$CLAUDE_CODE_USE_BEDROCK" = "1" ] && return 0
     [ "$CLAUDE_CODE_USE_VERTEX" = "1" ] && return 0
     # OAuth: look for stored credentials.
@@ -81,6 +85,38 @@ flow_api_key() {
     echo -e "  ${GREEN}✔ Saved.${NC} It will be reused automatically next time."
 }
 
+save_token() {
+    local tok="$1"
+    mkdir -p "$STATE_DIR"
+    printf '%s' "$tok" > "$TOKEN_FILE"
+    chmod 600 "$TOKEN_FILE"
+    export CLAUDE_CODE_OAUTH_TOKEN="$tok"
+}
+
+flow_token() {
+    echo -e "  ${BOLD}Stay signed in with a long-lived token${NC}"
+    echo -e "  ${DIM}Generates a token tied to your Claude subscription so Aida doesn't${NC}"
+    echo -e "  ${DIM}get logged out every few days — still your Pro/Max plan, no API billing.${NC}"
+    echo ""
+    echo -e "  ${DIM}A link appears: open it, approve, paste the code back — then copy the${NC}"
+    echo -e "  ${DIM}token it prints. Keep that token secret (treat it like a password).${NC}"
+    echo ""
+    read -rp "  Press Enter to run 'claude setup-token'... " _
+    claude setup-token
+    echo ""
+    echo -e "  ${BOLD}Paste the token shown above to save it here${NC} ${DIM}(or leave blank and${NC}"
+    echo -e "  ${DIM}paste it into the add-on's 'Long-lived OAuth token' config field instead):${NC}"
+    printf "  Token: "
+    read -rs tok
+    echo ""
+    if [ -z "$tok" ]; then
+        echo -e "  ${YELLOW}Nothing saved.${NC} Set it in the add-on config, then restart."
+        return 1
+    fi
+    save_token "$tok"
+    echo -e "  ${GREEN}✔ Saved${NC} to ${TOKEN_FILE} (chmod 600). Restart the add-on to apply."
+}
+
 show_menu() {
     clear
     echo ""
@@ -91,13 +127,14 @@ show_menu() {
     echo "  How would you like to sign in?"
     echo ""
     echo "   1) 🟣 Claude account (Pro/Max or Console OAuth)"
-    echo "   2) 🔑 Anthropic API key"
-    echo "   3) ☁️  Amazon Bedrock        (set keys in add-on config)"
-    echo "   4) ☁️  Google Vertex AI      (set project in add-on config)"
-    echo "   5) ℹ️  Show status"
-    echo "   6) ➡️  Continue without changing"
+    echo "   2) 🟢 Stay signed in — long-lived token (recommended for Pro/Max)"
+    echo "   3) 🔑 Anthropic API key"
+    echo "   4) ☁️  Amazon Bedrock        (set keys in add-on config)"
+    echo "   5) ☁️  Google Vertex AI      (set project in add-on config)"
+    echo "   6) ℹ️  Show status"
+    echo "   7) ➡️  Continue without changing"
     echo ""
-    printf "  Choose [1-6]: "
+    printf "  Choose [1-7]: "
 }
 
 interactive() {
@@ -106,13 +143,14 @@ interactive() {
         read -r choice
         case "$choice" in
             1) flow_oauth; return 0 ;;
-            2) flow_api_key && return 0 ;;
-            3) echo -e "\n  Set ${BOLD}auth_method: bedrock${NC} plus AWS keys in the add-on"
+            2) flow_token && return 0 ;;
+            3) flow_api_key && return 0 ;;
+            4) echo -e "\n  Set ${BOLD}auth_method: bedrock${NC} plus AWS keys in the add-on"
                echo -e "  configuration, then restart the add-on.\n"; read -rp "  Press Enter..." _ ;;
-            4) echo -e "\n  Set ${BOLD}auth_method: vertex${NC} plus your GCP project in the add-on"
+            5) echo -e "\n  Set ${BOLD}auth_method: vertex${NC} plus your GCP project in the add-on"
                echo -e "  configuration, then restart the add-on.\n"; read -rp "  Press Enter..." _ ;;
-            5) print_status; read -rp "  Press Enter..." _ ;;
-            6) return 0 ;;
+            6) print_status; read -rp "  Press Enter..." _ ;;
+            7) return 0 ;;
             *) echo "  Invalid choice."; sleep 1 ;;
         esac
     done

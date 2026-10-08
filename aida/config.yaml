@@ -1,7 +1,7 @@
 ---
 name: "Aida"
 description: "Agentic AI assistant for Home Assistant — safe by default, easy multi-method sign-in, powered by Claude Code"
-version: "1.0.10"
+version: "1.0.11"
 slug: "aida"
 init: false
 
@@ -33,6 +33,7 @@ options:
   # --- Sign-in ---
   auth_method: "oauth"
   anthropic_api_key: ""
+  claude_oauth_token: ""
   # --- Safety ---
   mode: "assisted"
   entity_denylist:
@@ -49,6 +50,7 @@ options:
   enable_bridge: true
   bridge_require_token: true
   claude_version: "auto"
+  diagnostics: false
   # --- Packages ---
   persistent_apk_packages: []
   persistent_pip_packages: []
@@ -56,6 +58,7 @@ schema:
   # Sign-in
   auth_method: "list(oauth|api_key|bedrock|vertex)"
   anthropic_api_key: "password?"
+  claude_oauth_token: "password?"
   aws_region: "str?"
   aws_access_key_id: "str?"
   aws_secret_access_key: "password?"
@@ -78,6 +81,7 @@ schema:
   enable_bridge: "bool?"
   bridge_require_token: "bool?"
   claude_version: "str?"
+  diagnostics: "bool?"
   # Packages
   persistent_apk_packages:
     - "str"

@@ -45,21 +45,62 @@ jobs:
         with:
           path: "./aida"
 
-  build:
-    name: Build (amd64 smoke test)
+  test:
+    name: Shell tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Run test suite
+        run: bash tests/test-run.sh   # bash + jq are preinstalled on the runner
+
+  build:
+    name: Build ${{ matrix.arch }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            base: ghcr.io/home-assistant/amd64-base-debian:bookworm
+            platform: linux/amd64
+          - arch: aarch64
+            base: ghcr.io/home-assistant/aarch64-base-debian:bookworm
+            platform: linux/arm64
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        if: matrix.arch == 'aarch64'
+        uses: docker/setup-qemu-action@v3
 
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build image
+      - name: Build image (${{ matrix.arch }})
         uses: docker/build-push-action@v6
         with:
           context: ./aida
           file: ./aida/Dockerfile
+          platforms: ${{ matrix.platform }}
           build-args: |
-            BUILD_FROM=ghcr.io/home-assistant/amd64-base-debian:bookworm
+            BUILD_FROM=${{ matrix.base }}
           push: false
+          load: true
           tags: local/aida:ci
+
+      # Native runtime checks only on amd64 (the runner's own arch).
+      - name: Smoke test — Claude Code CLI starts
+        if: matrix.arch == 'amd64'
+        run: docker run --rm --entrypoint bash local/aida:ci -c 'timeout 40 claude --version'
+
+      # Verify the ha-mcp dependency chain (ha-mcp -> textdistance -> numpy)
+      # imports cleanly. NumPy 2.x wheels need x86-64-v2 and crash on import on
+      # older/VM CPUs; the --with 'numpy<2' pin is what keeps this working. A
+      # full server start needs Home Assistant, so we only check the import here.
+      - name: Smoke test — ha-mcp imports (numpy<2 loads)
+        if: matrix.arch == 'amd64'
+        timeout-minutes: 8
+        run: |
+          docker run --rm --entrypoint uvx local/aida:ci \
+            --index-strategy unsafe-best-match --with 'numpy<2' --from ha-mcp@3.5.1 \
+            python -c 'import numpy, ha_mcp; print("ha-mcp + numpy import OK:", numpy.__version__)'

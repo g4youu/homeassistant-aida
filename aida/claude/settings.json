@@ -38,6 +38,7 @@
       "Read(/data/.config/claude/**)",
       "Read(/config/aida/bridge-token)",
       "Read(/config/aida/anthropic_api_key)",
+      "Read(/config/aida/oauth-token)",
       "Read(**/.credentials.json)",
       "Read(**/secrets.yaml)"
     ]
